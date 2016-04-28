@@ -22,11 +22,14 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class MapsActivity extends FragmentActivity
         implements
@@ -40,7 +43,7 @@ public class MapsActivity extends FragmentActivity
     /**
      * Interval for location updates
      */
-    public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
+    public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 1000;
 
     /**
      * Maximum for location updates
@@ -97,6 +100,9 @@ public class MapsActivity extends FragmentActivity
     private GoogleMap mMap;
     private PolylineOptions mPolylineOptions;
     private LatLng mLatLng;
+
+    // Array of markers for acceleration events
+    protected List<Object[]> mMarkerOptions;
 
 
     @Override
@@ -340,6 +346,7 @@ public class MapsActivity extends FragmentActivity
                 updatePolyline();
                 updateCamera();
                 updateMarker();
+                addMarkers();
             }
         });
     }
@@ -373,6 +380,19 @@ public class MapsActivity extends FragmentActivity
     /**
      * Get sensor info
      */
+    public void addMarkers(){
+        mMarkerOptions = new ArrayList<>();
+        String title = "Point";
+        String snippet = "snippet";
 
+        mMarkerOptions.add(new Object[]{mLatLng, title, snippet});
 
+        for (int i = 0; i < mMarkerOptions.size(); i++) {
+            mMap.addMarker(new MarkerOptions()
+                    .position((LatLng)mMarkerOptions.get(i)[0])
+                    .title((String)mMarkerOptions.get(i)[1])
+                    .snippet((String)mMarkerOptions.get(i)[2])
+                    .draggable(true));
+        }
+    }
 }
