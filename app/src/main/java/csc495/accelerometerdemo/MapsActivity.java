@@ -2,8 +2,6 @@ package csc495.accelerometerdemo;
 
 import android.graphics.Color;
 import android.location.Location;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -22,14 +20,10 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.text.DateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 public class MapsActivity extends FragmentActivity
         implements
@@ -96,14 +90,9 @@ public class MapsActivity extends FragmentActivity
      */
     protected String mLastUpdateTime;
 
-
     private GoogleMap mMap;
     private PolylineOptions mPolylineOptions;
     private LatLng mLatLng;
-
-    // Array of markers for acceleration events
-    protected List<Object[]> mMarkerOptions;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -240,16 +229,11 @@ public class MapsActivity extends FragmentActivity
     }
 
     private void updatePolyline() {
-        mMap.clear();
         mMap.addPolyline(mPolylineOptions.add(mLatLng));
     }
 
-    private void updateMarker() {
-        mMap.addMarker(new MarkerOptions().position(mLatLng));
-    }
-
     private void updateCamera() {
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mLatLng, 16));
+        mMap.animateCamera(CameraUpdateFactory.newLatLng(mLatLng));
     }
 
     @Override
@@ -345,8 +329,8 @@ public class MapsActivity extends FragmentActivity
             public void run() {
                 updatePolyline();
                 updateCamera();
-                updateMarker();
-                addMarkers();
+                //updateMarker();
+                //addMarkers();
             }
         });
     }
@@ -380,19 +364,6 @@ public class MapsActivity extends FragmentActivity
     /**
      * Get sensor info
      */
-    public void addMarkers(){
-        mMarkerOptions = new ArrayList<>();
-        String title = "Point";
-        String snippet = "snippet";
 
-        mMarkerOptions.add(new Object[]{mLatLng, title, snippet});
 
-        for (int i = 0; i < mMarkerOptions.size(); i++) {
-            mMap.addMarker(new MarkerOptions()
-                    .position((LatLng)mMarkerOptions.get(i)[0])
-                    .title((String)mMarkerOptions.get(i)[1])
-                    .snippet((String)mMarkerOptions.get(i)[2])
-                    .draggable(true));
-        }
-    }
 }
