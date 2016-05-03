@@ -7,6 +7,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
+import android.support.annotation.NonNull;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -32,6 +33,7 @@ import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.text.DateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 public class MapsActivity extends FragmentActivity
         implements
@@ -41,39 +43,42 @@ public class MapsActivity extends FragmentActivity
         LocationListener,
         SensorEventListener
 {
-    protected static final String TAG = "Acceleration App";
-
     /**
      * Interval for location updates
      */
     public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 1000;
-
     /**
      * Maximum for location updates
      */
     public static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
             UPDATE_INTERVAL_IN_MILLISECONDS / 2;
-
+    protected static final String TAG = "Acceleration App";
     // Keys for storing activity state in the Bundle.
     protected final static String REQUESTING_LOCATION_UPDATES_KEY = "requesting-location-updates-key";
     protected final static String LOCATION_KEY = "location-key";
     protected final static String LAST_UPDATED_TIME_STRING_KEY = "last-updated-time-string-key";
+    /**
+     * Vars for low-pass
+     */
 
+    static final float ALPHA = 0.25f; // if ALPHA = 1 OR 0, no filter applies.
+    /**
+     * Declare acceleration marker vars
+     */
+    private final String accelTitleAvg = "Average";
+    private final String accelTitleHigh = "High";
     /**
      * Provides the entry point to Google Play services.
      */
     protected GoogleApiClient mGoogleApiClient;
-
     /**
      * Stores parameters for requests to the FusedLocationProviderApi.
      */
     protected LocationRequest mLocationRequest;
-
     /**
      * Represents a geographical location.
      */
     protected Location mCurrentLocation;
-
     /**
      * UI widgets
      */
@@ -82,48 +87,31 @@ public class MapsActivity extends FragmentActivity
     protected TextView mLastUpdateTimeTextView;
     protected TextView mLatitudeTextView;
     protected TextView mLongitudeTextView;
-
     // Labels.
     protected String mLatitudeLabel;
     protected String mLongitudeLabel;
     protected String mLastUpdateTimeLabel;
-
     /**
      * Tracks the status of the location updates request. Value changes when the user presses the
      * Start Updates and Stop Updates buttons.
      */
     protected Boolean mRequestingLocationUpdates;
-
     /**
      * Time when the location was updated represented as a String.
      */
     protected String mLastUpdateTime;
-
+    protected float[] accelValues;
+    protected double accelMagnitude;
+    String accelSnippet = "";
     private GoogleMap mMap;
     private PolylineOptions mPolylineOptions;
     private LatLng mLatLng;
-
     /**
      * Declare sensor components and vars
      */
     private SensorManager sm;
-    private Sensor linAccel;
+    //private Sensor linAccel;
     private long markerTime = 0;
-
-    /**
-     * Declare acceleration marker vars
-     */
-    private final String accelTitleAvg = "Average";
-    private final String accelTitleHigh = "High";
-    String accelSnippet = "";
-
-    /**
-     * Vars for low-pass
-     */
-
-    static final float ALPHA = 0.25f; // if ALPHA = 1 OR 0, no filter applies.
-    protected float[] accelValues;
-    protected double accelMagnitude;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -155,11 +143,13 @@ public class MapsActivity extends FragmentActivity
 
         // Initialize sensor manager and check for sensor
         sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        /*
         if (sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION) != null) {
             linAccel = sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         } else {
             //no linear acceleration
         }
+        */
     }
 
     /**
@@ -345,9 +335,9 @@ public class MapsActivity extends FragmentActivity
      * Updates the latitude, the longitude, and the last location time in the UI.
      */
     private void updateUI() {
-        mLatitudeTextView.setText(String.format("%s: %f", mLatitudeLabel,
+        mLatitudeTextView.setText(String.format(Locale.US, "%s: %f", mLatitudeLabel,
                 mCurrentLocation.getLatitude()));
-        mLongitudeTextView.setText(String.format("%s: %f", mLongitudeLabel,
+        mLongitudeTextView.setText(String.format(Locale.US, "%s: %f", mLongitudeLabel,
                 mCurrentLocation.getLongitude()));
         mLastUpdateTimeTextView.setText(String.format("%s: %s", mLastUpdateTimeLabel,
                 accelMagnitude));
@@ -384,7 +374,7 @@ public class MapsActivity extends FragmentActivity
     }
 
     @Override
-    public void onConnectionFailed(ConnectionResult result) {
+    public void onConnectionFailed(@NonNull ConnectionResult result) {
         // Refer to the javadoc for ConnectionResult to see what error codes might be returned in
         // onConnectionFailed.
         Log.i(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + result.getErrorCode());
