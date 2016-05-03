@@ -108,8 +108,6 @@ public class MapsActivity extends FragmentActivity
      */
     private SensorManager sm;
     private Sensor linAccel;
-    private float[] linAccelData = new float[3];
-    float linAccelx, linAccely, linAccelz;
     private long markerTime = 0;
 
     /**
@@ -122,11 +120,10 @@ public class MapsActivity extends FragmentActivity
     /**
      * Vars for low-pass
      */
-    double smoothed   = 0;        // or some likely initial value
-    int smoothing  = 10;       // or whatever is desired
-    protected Long lastUpdate;
-    protected int firstUpdate = 0;
-    protected double accelReading;
+
+    static final float ALPHA = 0.25f; // if ALPHA = 1 OR 0, no filter applies.
+    protected float[] accelValues;
+    protected double accelMagnitude;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -353,7 +350,7 @@ public class MapsActivity extends FragmentActivity
         mLongitudeTextView.setText(String.format("%s: %f", mLongitudeLabel,
                 mCurrentLocation.getLongitude()));
         mLastUpdateTimeTextView.setText(String.format("%s: %s", mLastUpdateTimeLabel,
-                accelReading));
+                accelMagnitude));
     }
 
     /**
@@ -413,36 +410,34 @@ public class MapsActivity extends FragmentActivity
                     .icon(newIcon)
                     .title(newTitle)
                     .snippet(newSnippet)
-                    .anchor(0.5f, 0.5f));
+            );
         }
     }
 
     @Override
     public void onSensorChanged(final SensorEvent event) {
+        accelValues = lowPass(event.values.clone(), accelValues);
+        accelMagnitude = Math.sqrt((accelValues[0]*accelValues[0]) + (accelValues[1]*accelValues[1])
+                + (accelValues[2]*accelValues[2]));
 
-        if (firstUpdate == 0) {
-            lastUpdate = event.timestamp;
-            firstUpdate = 1;
-        }
-        accelReading = smoothedValue(event);
-        if((accelReading > 1.5 && accelReading < 2.25)){
-            accelSnippet = String.valueOf(accelReading) + " m/s^2";
+        if((accelMagnitude > 1.5 && accelMagnitude < 2.25)){
+            accelSnippet = String.valueOf(accelMagnitude) + " m/s^2";
 
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    addAccelMarker(BitmapDescriptorFactory.fromResource(R.mipmap.yellow_pin),
+                    addAccelMarker(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW),
                             accelTitleAvg, accelSnippet, markerTime, event.timestamp);
                 }
             });
 
         }
-        if(accelReading > 2.25){
-            accelSnippet = String.valueOf(accelReading) + " m/s^2";
+        if(accelMagnitude > 2.25){
+            accelSnippet = String.valueOf(accelMagnitude) + " m/s^2";
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    addAccelMarker(BitmapDescriptorFactory.fromResource(R.mipmap.red_pin),
+                    addAccelMarker(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED),
                             accelTitleHigh, accelSnippet, markerTime, event.timestamp);
                 }
             });
@@ -454,14 +449,11 @@ public class MapsActivity extends FragmentActivity
 
     }
 
-    public double smoothedValue(SensorEvent mEvent){
-        Long now = mEvent.timestamp;
-        Long elapsedTime = now - lastUpdate;
-        accelReading = Math.sqrt((mEvent.values[0]*mEvent.values[0]) + (mEvent.values[1]*mEvent.values[1])
-                + (mEvent.values[2]*mEvent.values[2]));
-        //smoothed += elapsedTime * ( accelReading - smoothed ) / smoothing;
-        smoothed = accelReading;
-        lastUpdate = now;
-        return smoothed;
+    protected float[] lowPass( float[] input, float[] output ) {
+        if ( output == null ) return input;
+        for ( int i=0; i<input.length; i++ ) {
+            output[i] = output[i] + ALPHA * (input[i] - output[i]);
+        }
+        return output;
     }
 }
