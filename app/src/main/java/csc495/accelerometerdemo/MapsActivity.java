@@ -1,6 +1,11 @@
 package csc495.accelerometerdemo;
 
+import android.content.Context;
 import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -19,7 +24,10 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.text.DateFormat;
@@ -30,7 +38,8 @@ public class MapsActivity extends FragmentActivity
         OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
-        LocationListener
+        LocationListener,
+        SensorEventListener
 {
     protected static final String TAG = "Acceleration App";
 
@@ -94,6 +103,31 @@ public class MapsActivity extends FragmentActivity
     private PolylineOptions mPolylineOptions;
     private LatLng mLatLng;
 
+    /**
+     * Declare sensor components and vars
+     */
+    private SensorManager sm;
+    private Sensor linAccel;
+    private float[] linAccelData = new float[3];
+    float linAccelx, linAccely, linAccelz;
+    private long markerTime = 0;
+
+    /**
+     * Declare acceleration marker vars
+     */
+    private final String accelTitleAvg = "Average";
+    private final String accelTitleHigh = "High";
+    String accelSnippet = "";
+
+    /**
+     * Vars for low-pass
+     */
+    double smoothed   = 0;        // or some likely initial value
+    int smoothing  = 10;       // or whatever is desired
+    protected Long lastUpdate;
+    protected int firstUpdate = 0;
+    protected double accelReading;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -121,6 +155,14 @@ public class MapsActivity extends FragmentActivity
         // Kick off the process of building a GoogleApiClient and requesting the LocationServices
         // API.
         buildGoogleApiClient();
+
+        // Initialize sensor manager and check for sensor
+        sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        if (sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION) != null) {
+            linAccel = sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        } else {
+            //no linear acceleration
+        }
     }
 
     /**
@@ -176,6 +218,7 @@ public class MapsActivity extends FragmentActivity
         // (http://developer.android.com/reference/com/google/android/gms/location/LocationListener.html).
         LocationServices.FusedLocationApi.requestLocationUpdates(
                 mGoogleApiClient, mLocationRequest, this);
+        sm.registerListener(this, sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION), 100000);
     }
 
     /**
@@ -204,6 +247,7 @@ public class MapsActivity extends FragmentActivity
         // The final argument to {@code requestLocationUpdates()} is a LocationListener
         // (http://developer.android.com/reference/com/google/android/gms/location/LocationListener.html).
         LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        sm.unregisterListener(this);
     }
 
 
@@ -248,7 +292,6 @@ public class MapsActivity extends FragmentActivity
         // Within {@code onPause()}, we pause location updates, but leave the
         // connection to GoogleApiClient intact.  Here, we resume receiving
         // location updates if the user has requested them.
-
         if (mGoogleApiClient.isConnected() && mRequestingLocationUpdates) {
             startLocationUpdates();
         }
@@ -310,7 +353,7 @@ public class MapsActivity extends FragmentActivity
         mLongitudeTextView.setText(String.format("%s: %f", mLongitudeLabel,
                 mCurrentLocation.getLongitude()));
         mLastUpdateTimeTextView.setText(String.format("%s: %s", mLastUpdateTimeLabel,
-                mLastUpdateTime));
+                accelReading));
     }
 
     /**
@@ -364,6 +407,61 @@ public class MapsActivity extends FragmentActivity
     /**
      * Get sensor info
      */
+    public void addAccelMarker(BitmapDescriptor newIcon, String newTitle, String newSnippet, long t1, long t2) {
+        if ((t2 - t1) > (10 * 100000000) && (mLatLng != null)) {
+            mMap.addMarker(new MarkerOptions().position(mLatLng)
+                    .icon(newIcon)
+                    .title(newTitle)
+                    .snippet(newSnippet)
+                    .anchor(0.5f, 0.5f));
+        }
+    }
 
+    @Override
+    public void onSensorChanged(final SensorEvent event) {
 
+        if (firstUpdate == 0) {
+            lastUpdate = event.timestamp;
+            firstUpdate = 1;
+        }
+        accelReading = smoothedValue(event);
+        if((accelReading > 1.5 && accelReading < 2.25)){
+            accelSnippet = String.valueOf(accelReading) + " m/s^2";
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    addAccelMarker(BitmapDescriptorFactory.fromResource(R.mipmap.yellow_pin),
+                            accelTitleAvg, accelSnippet, markerTime, event.timestamp);
+                }
+            });
+
+        }
+        if(accelReading > 2.25){
+            accelSnippet = String.valueOf(accelReading) + " m/s^2";
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    addAccelMarker(BitmapDescriptorFactory.fromResource(R.mipmap.red_pin),
+                            accelTitleHigh, accelSnippet, markerTime, event.timestamp);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
+    public double smoothedValue(SensorEvent mEvent){
+        Long now = mEvent.timestamp;
+        Long elapsedTime = now - lastUpdate;
+        accelReading = Math.sqrt((mEvent.values[0]*mEvent.values[0]) + (mEvent.values[1]*mEvent.values[1])
+                + (mEvent.values[2]*mEvent.values[2]));
+        //smoothed += elapsedTime * ( accelReading - smoothed ) / smoothing;
+        smoothed = accelReading;
+        lastUpdate = now;
+        return smoothed;
+    }
 }
