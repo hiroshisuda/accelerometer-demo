@@ -201,8 +201,6 @@ public class MapsActivity extends FragmentActivity
      * Requests location updates from the FusedLocationApi.
      */
     protected void startLocationUpdates() {
-        // The final argument to {@code requestLocationUpdates()} is a LocationListener
-        // (http://developer.android.com/reference/com/google/android/gms/location/LocationListener.html).
         LocationServices.FusedLocationApi.requestLocationUpdates(
                 mGoogleApiClient, mLocationRequest, this);
         sm.registerListener(this, sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION), 100000);
@@ -227,12 +225,6 @@ public class MapsActivity extends FragmentActivity
      * Removes location updates from the FusedLocationApi.
      */
     protected void stopLocationUpdates() {
-        // It is a good practice to remove location requests when the activity is in a paused or
-        // stopped state. Doing so helps battery performance and is especially
-        // recommended in applications that request frequent location updates.
-
-        // The final argument to {@code requestLocationUpdates()} is a LocationListener
-        // (http://developer.android.com/reference/com/google/android/gms/location/LocationListener.html).
         LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         sm.unregisterListener(this);
     }
@@ -240,12 +232,6 @@ public class MapsActivity extends FragmentActivity
 
     /**
      * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -312,11 +298,6 @@ public class MapsActivity extends FragmentActivity
         // its value in the Bundle and check for it in onCreate(). We
         // do not request it again unless the user specifically requests location updates by pressing
         // the Start Updates button.
-        //
-        // Because we cache the value of the initial location in the Bundle, it means that if the
-        // user launches the activity,
-        // moves to a new location, and then changes the device orientation, the original location
-        // is displayed as the activity is re-created.
         if (mCurrentLocation == null) {
             mCurrentLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
             mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
@@ -359,8 +340,6 @@ public class MapsActivity extends FragmentActivity
             public void run() {
                 updatePolyline();
                 updateCamera();
-                //updateMarker();
-                //addMarkers();
             }
         });
     }
@@ -375,8 +354,6 @@ public class MapsActivity extends FragmentActivity
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult result) {
-        // Refer to the javadoc for ConnectionResult to see what error codes might be returned in
-        // onConnectionFailed.
         Log.i(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + result.getErrorCode());
     }
 
@@ -392,7 +369,7 @@ public class MapsActivity extends FragmentActivity
     }
 
     /**
-     * Get sensor info
+     * Function to add marker to map
      */
     public void addAccelMarker(BitmapDescriptor newIcon, String newTitle, String newSnippet, long t1, long t2) {
         if ((t2 - t1) > (10 * 100000000) && (mLatLng != null)) {
@@ -403,7 +380,11 @@ public class MapsActivity extends FragmentActivity
             );
         }
     }
-
+    
+    /**
+     * Get acceleration sensor events and apply low pass filter
+     * Add markers whenever acceleration exceeds the provided values
+     */
     @Override
     public void onSensorChanged(final SensorEvent event) {
         accelValues = lowPass(event.values.clone(), accelValues);
